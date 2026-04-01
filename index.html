@@ -438,8 +438,9 @@ label{font-size:11px;color:var(--t2);margin-bottom:4px;display:block;font-weight
     <div class="fg"><label>What did you eat?</label><input id="jk-food" type="text" placeholder="Dominos, chips, samosa..."></div>
     <div class="fr2">
       <div class="fg"><label>Category</label><select id="jk-cat"><option>Fast Food</option><option>Fried</option><option>Sweets</option><option>Chips/Snacks</option><option>Sugary Drink</option><option>Alcohol</option><option>Other</option></select></div>
-      <div class="fg"><label>Note (optional)</label><input id="jk-note" type="text" placeholder="reason..."></div>
+      <div class="fg"><label>Which day?</label><input id="jk-date" type="date"></div>
     </div>
+    <div class="fg"><label>Note (optional)</label><input id="jk-note" type="text" placeholder="reason, context..."></div>
     <div class="mfooter"><button class="btn btn-o" onclick="closeModal('m-junk')">Cancel</button><button class="btn btn-d" onclick="logJunk()" style="border-color:var(--re)">Log It</button></div>
   </div>
 </div>
@@ -499,7 +500,7 @@ label{font-size:11px;color:var(--t2);margin-bottom:4px;display:block;font-weight
 <script>
 const K={wk:'fg_wk',td:'fg_td',jk:'fg_jk',hb:'fg_hb',hl:'fg_hl',sp:'fg_sp',sl:'fg_sl',mt:'fg_mt',tm:'fg_tm',gl:'fg_gl',pg:'fg_pg',lt:'fg_lt',jbk:'fg_jbk',jbb:'fg_jbb'};
 const ls={g:k=>{try{const r=localStorage.getItem(k);return r?JSON.parse(r):null;}catch{return null;}},s:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}}};
-const ds=d=>(d||new Date()).toISOString().split('T')[0];
+const ds=d=>{const dt=d||new Date();return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');};
 const today=()=>ds(new Date());
 const uid=()=>Math.random().toString(36).slice(2,9);
 const getWeekDays=()=>{const n=new Date(),s=new Date(n);s.setDate(n.getDate()-n.getDay());return Array.from({length:7},(_,i)=>{const d=new Date(s);d.setDate(s.getDate()+i);return ds(d);});};
@@ -627,8 +628,8 @@ function saveWorkout(){const name=document.getElementById('l-name').value.trim()
 function saveTemplate(){const name=document.getElementById('tmpl-name').value.trim();if(!name){toast('Enter name','info');return;}const exs=ls.g(K.lt)||[];if(!exs.length){toast('Add exercises first','info');return;}const ts=ls.g(K.tm)||[];ts.push({id:uid(),name,exercises:exs.map(e=>({...e,sets:(e.sets||[]).map(s=>({...s,done:false}))}))});ls.s(K.tm,ts);document.getElementById('tmpl-name').value='';toast('✓ Template saved','ok');}
 
 // JUNK
-function openJunkModal(){document.getElementById('jk-food').value='';document.getElementById('jk-note').value='';openModal('m-junk');setTimeout(()=>document.getElementById('jk-food').focus(),150);}
-function logJunk(){const food=document.getElementById('jk-food').value.trim();if(!food){toast('What did you eat?','info');return;}const jk=ls.g(K.jk)||[];jk.push({id:uid(),date:today(),time:new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}),food,cat:document.getElementById('jk-cat').value,note:document.getElementById('jk-note').value});ls.s(K.jk,jk);closeModal('m-junk');renderJunk();toast('Logged. Do better. 💪','warn');}
+function openJunkModal(){document.getElementById('jk-food').value='';document.getElementById('jk-note').value='';document.getElementById('jk-date').value=today();openModal('m-junk');setTimeout(()=>document.getElementById('jk-food').focus(),150);}
+function logJunk(){const food=document.getElementById('jk-food').value.trim();if(!food){toast('What did you eat?','info');return;}const jk=ls.g(K.jk)||[];const sd=document.getElementById('jk-date').value||today();const isToday=sd===today();jk.push({id:uid(),date:sd,time:isToday?new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}):'',food,cat:document.getElementById('jk-cat').value,note:document.getElementById('jk-note').value});ls.s(K.jk,jk);closeModal('m-junk');renderJunk();const wd=new Date(sd+'T12:00:00').toLocaleDateString('en-IN',{weekday:'long'});toast(isToday?'Logged. Do better.':'Logged for '+wd+'. Noted.','warn');}
 function renderJunk(){
   const jk=ls.g(K.jk)||[];const wd=getWeekDays();const td=today();
   document.getElementById('jk-w').textContent=jk.filter(j=>wd.includes(j.date)).length;
@@ -744,5 +745,3 @@ renderDash();
 </script>
 </body>
 </html>
-
-
