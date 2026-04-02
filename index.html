@@ -841,8 +841,56 @@ function renderSettings(){const k=ls.g(K.jbk)||'';const b=ls.g(K.jbb)||'';if(k)d
 async function syncUp(){const key=document.getElementById('jb-key').value.trim();if(!key){toast('Enter Key first','info');return;}ls.s(K.jbk,key);const all={};Object.values(K).forEach(k=>{const v=ls.g(k);if(v)all[k]=v;});let binId=document.getElementById('jb-bin').value.trim();setSS('Syncing...');try{const url='https://api.jsonbin.io/v3/b'+(binId?'/'+binId:'');const res=await fetch(url,{method:binId?'PUT':'POST',headers:{'Content-Type':'application/json','X-Master-Key':key,'X-Bin-Name':'FORGE'},body:JSON.stringify(all)});const d=await res.json();if(d.metadata?.id){binId=d.metadata.id;document.getElementById('jb-bin').value=binId;ls.s(K.jbb,binId);}res.ok?setSS('✓ Synced! Bin ID: '+binId,'color:var(--gr)'):setSS('Error: '+(d.message||'failed'),'color:var(--re)');}catch{setSS('Network error','color:var(--re)');}}
 async function syncDown(){const key=document.getElementById('jb-key').value.trim();const binId=document.getElementById('jb-bin').value.trim();if(!key||!binId){toast('Enter Key + Bin ID','info');return;}setSS('Pulling...');try{const res=await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`,{headers:{'X-Master-Key':key}});const d=await res.json();if(res.ok&&d.record){Object.entries(d.record).forEach(([k,v])=>ls.s(k,v));setSS('✓ Data loaded! Reload app.','color:var(--gr)');toast('✓ Loaded!','ok');}else setSS('Error pulling','color:var(--re)');}catch{setSS('Network error','color:var(--re)');}}
 function setSS(msg,style=''){const el=document.getElementById('sync-st');el.textContent=msg;el.style=style;}
-function exportData(){const all={};Object.entries(K).forEach(([k,v])=>{const d=ls.g(v);if(d)all[k]=d;});const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(all,null,2)],{type:'application/json'}));a.download=`forge-${today()}.json`;a.click();toast('✓ Exported!','ok');}
-function importData(input){const f=input.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{try{const d=JSON.parse(e.target.result);if(confirm('Overwrite all current data?')){Object.entries(d).forEach(([k,v])=>ls.s(k,v));toast('✓ Imported! Reload.','ok');}}catch{toast('Invalid file','warn');}};r.readAsText(f);}
+function exportData(){const all={};Object.entries(K).forEach(([k,v])=>{const d=ls.g(v);if(d)all[v]=d;});const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(all,null,2)],{type:'application/json'}));a.download=`forge-${today()}.json`;a.click();toast('✓ Exported!','ok');}
+function importData(input){
+  const f=input.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      const d=JSON.parse(e.target.result);
+      // no confirm() - blocked on iOS. Just show a confirmation UI instead.
+      showImportConfirm(d);
+    }catch{toast('Invalid or corrupted file','warn');}
+  };
+  r.readAsText(f);
+  // reset input so same file can be re-selected
+  input.value='';
+}
+function showImportConfirm(data){
+  // build a simple in-page confirmation banner instead of confirm()
+  const existing=document.getElementById('import-confirm-bar');
+  if(existing)existing.remove();
+  const bar=document.createElement('div');
+  bar.id='import-confirm-bar';
+  bar.style.cssText='position:fixed;bottom:calc(var(--nav) + 10px);left:12px;right:12px;background:var(--s2);border:1.5px solid var(--or);border-radius:var(--r);padding:14px 16px;z-index:600;box-shadow:0 8px 24px rgba(0,0,0,.6)';
+  bar.innerHTML=`<div style="font-size:13px;font-weight:700;margin-bottom:10px">&#x26A0;&#xFE0F; This will overwrite ALL current data. Are you sure?</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-p btn-sm" style="flex:1" onclick="confirmImport(window._importData)">Yes, Import & Reload</button>
+      <button class="btn btn-o btn-sm" style="flex:1" onclick="document.getElementById('import-confirm-bar').remove();window._importData=null">Cancel</button>
+    </div>`;
+  document.body.appendChild(bar);
+  window._importData=data;
+}
+function confirmImport(data){
+  if(!data)return;
+  const validKeys=Object.values(K); // ['fg_wk','fg_jk',...]
+  const shortMap=K;                 // {wk:'fg_wk', jk:'fg_jk',...}
+  Object.entries(data).forEach(([k,v])=>{
+    if(validKeys.includes(k)){
+      // new format: key is already 'fg_wk' style
+      ls.s(k,v);
+    } else if(shortMap[k]){
+      // old format: key is shorthand 'wk' style — map it
+      ls.s(shortMap[k],v);
+    }
+  });
+  window._importData=null;
+  const bar=document.getElementById('import-confirm-bar');
+  if(bar)bar.remove();
+  const t=document.getElementById('toast');
+  t.textContent='✓ Data imported! Reloading...';t.className='toast show ok';
+  setTimeout(()=>location.reload(),1200);
+}
 function clearAll(){if(confirm('DELETE ALL DATA?')){Object.values(K).forEach(k=>localStorage.removeItem(k));toast('Cleared','warn');setTimeout(()=>location.reload(),1000);}}
 
 // EDIT SET (Today)
